@@ -64,15 +64,19 @@ step, in docs it is `python`, but we have to specify absolute path, that is `/us
 To launch app initiate docker-compose services through terminal `docker-compose -f local.yml up` or with Pycharm
 services tab [Alt+8]
 
+_In development mode, the running app could be accessed at `http:\localhost:3000` -- it is aa devserver of webpack.
+classical path `0.0.0.0:8080` would not be able to access statics._
+
 To launch python console use **"Tools --> Python or Debug Console"**
 
 #### Accessing docker terminal
 
 1. Launch the docker compose in terminal: `docker-compose -f local.yml up`. Alternatively use Pycharm
    services tab [Alt+8]
-2. Add another terminal and connect to `django` service with `docker-compose -f local.yml exec django sh`
-
-Here you cun run `python manage.py migrate` adn so on.
+2. Add another terminal and connect to `django` service with `docker-compose -f local.yml exec django sh`. In such a
+   way you can work with file system if needed. Though, commands like `manage.py migrate` throws errors.
+3. You can call `manage.py` by direct invocation of commands through docker-composer exec, for example
+   `docker-compose -f local.yml run --rm django python manage.py startapp spmc`
 
 ### Custom Bootstrap Compilation
 
