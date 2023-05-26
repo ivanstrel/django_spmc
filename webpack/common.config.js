@@ -6,7 +6,8 @@ module.exports = {
   target: 'web',
   context: path.join(__dirname, '../'),
   entry: {
-    project: path.resolve(__dirname, '../django_spmc/static/js/project'),
+    common: path.resolve(__dirname, '../django_spmc/static/js/common'),
+    main_page: path.resolve(__dirname, '../django_spmc/static/js/main_page'),
     vendors: path.resolve(__dirname, '../django_spmc/static/js/vendors'),
   },
   output: {

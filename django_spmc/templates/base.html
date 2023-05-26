@@ -15,7 +15,7 @@
     <!-- Your stuff: Third-party CSS libraries go here -->
 
     <!-- This file stores project-specific CSS -->
-    {% render_bundle 'project' 'css' %}
+    {% render_bundle 'common' 'css' %}
     {% endblock %}
     <!-- Le javascript
     ================================================== -->
@@ -25,7 +25,7 @@
       {% render_bundle 'vendors' 'js' attrs='defer' %}
 
       <!-- place project specific Javascript in this file -->
-      {% render_bundle 'project' 'js' attrs='defer' %}
+      {% render_bundle 'common' 'js' attrs='defer' %}
 
     {% endblock javascript %}
 
