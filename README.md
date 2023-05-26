@@ -61,9 +61,18 @@ The only difference is the `python_interpreater_path` on
 the _"Switch to Docker Compose and select local.yml file from directory of your project, next set Service name to django"_
 step, in docs it is `python`, but we have to specify absolute path, that is `/usr/local/bin/python`
 
-To launch app use runserver configuration (top right, near the green arrow)
+To launch app initiate docker-compose services through terminal `docker-compose -f local.yml up` or with Pycharm
+services tab [Alt+8]
 
 To launch python console use **"Tools --> Python or Debug Console"**
+
+#### Accessing docker terminal
+
+1. Launch the docker compose in terminal: `docker-compose -f local.yml up`. Alternatively use Pycharm
+   services tab [Alt+8]
+2. Add another terminal and connect to `django` service with `docker-compose -f local.yml exec django sh`
+
+Here you cun run `python manage.py migrate` adn so on.
 
 ### Custom Bootstrap Compilation
 
