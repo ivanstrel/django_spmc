@@ -53,6 +53,18 @@ The following details how to deploy this application.
 
 See detailed [cookiecutter-django Docker documentation](http://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html).
 
+#### Docker usage with PyCharm
+
+Follow [instruction](https://github.com/cookiecutter/cookiecutter-django/blob/master/%7B%7Bcookiecutter.project_slug%7D%7D/docs/pycharm/configuration.rst)
+
+The only difference is the `python_interpreater_path` on
+the _"Switch to Docker Compose and select local.yml file from directory of your project, next set Service name to django"_
+step, in docs it is `python`, but we have to specify absolute path, that is `/usr/local/bin/python`
+
+To launch app use runserver configuration (top right, near the green arrow)
+
+To launch python console use **"Tools --> Python or Debug Console"**
+
 ### Custom Bootstrap Compilation
 
 The generated CSS is set up with automatic Bootstrap recompilation with variables of your choice.
