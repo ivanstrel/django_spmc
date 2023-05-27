@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% if not context.proj_id %}
+    <p>You did not select a project yet. Please go to <a class="link" href="{% url 'home' %}">Projects</a> and select one</p>
+  {% else %}
+    <p>proj_id = {{ context.proj_id }}</p>
+  {% endif %}
+{% endblock %}

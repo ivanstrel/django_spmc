@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block content %}
+  <h1>To continue, please log in or register</h1>
+  <a id="sign-up-link" class="nav-link" href="{% url 'account_signup' %}">{% translate "Sign Up" %}</a>
+  <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">{% translate "Sign In" %}</a>
+{% endblock content %}
