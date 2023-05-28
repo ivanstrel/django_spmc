@@ -1,11 +1,16 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
+from .models import Project
+
 
 def home(request):
     if request.user.is_authenticated:
         # Authenticated users will see this template
-        return render(request, "pages/home_auth.html")
+        # Get list of all projects
+        projects = Project.objects.all().values().order_by("id")
+        context = {"projects": projects}
+        return render(request, "pages/home_auth.html", context=context)
     else:
         # Unauthenticated users will see this template
         return render(request, "pages/home_non_auth.html")

@@ -3,4 +3,10 @@
 {% block content %}
   <h1>Сервис для ручной разметки спутниковых снимков на основе суперпиксельной сегментации</h1>
   <h2>Пожалуйста выберите проект, в котором хотите принять участие</h2>
+  {% for prj in projects %}
+    <p>Project id: {{ prj.id }}</p>
+    <p>Name: {{ prj.name }}</p>
+    <p>Description: {{ prj.description }}</p>
+    <hr>
+  {% endfor %}
 {% endblock %}
