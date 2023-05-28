@@ -8,11 +8,13 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
 
 # Import views
-from django_spmc.spmc.views import classification, home, scene
+from django_spmc.spmc.views import classification, home, scene, select_proj, select_scene
 
 urlpatterns = [
     path("", home, name="home"),
+    path("select-project/", select_proj, name="select_project"),
     path("scene/", scene, name="scene"),
+    path("select-scene/", select_scene, name="select_scene"),
     path("classification/", classification, name="classification"),
     path("about/", TemplateView.as_view(template_name="pages/about.html"), name="about"),
     # Django Admin, use {% url 'admin:index' %}

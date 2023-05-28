@@ -1,12 +1,20 @@
 {% extends "base.html" %}
+{% load static i18n %}
 
 {% block content %}
   <h1>Сервис для ручной разметки спутниковых снимков на основе суперпиксельной сегментации</h1>
   <h2>Пожалуйста выберите проект, в котором хотите принять участие</h2>
-  {% for prj in projects %}
-    <p>Project id: {{ prj.id }}</p>
-    <p>Name: {{ prj.name }}</p>
-    <p>Description: {{ prj.description }}</p>
-    <hr>
+  {% for proj in projects %}
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">{{ proj.name }}</h5>
+        <p class="card-text">{{ proj.description }}</p>
+        <form method="POST" action="{% url 'select_project' %}">
+          {% csrf_token %}
+          <input type="hidden" name="proj_id" value="{{ proj.id }}">
+          <button type="submit" class="btn btn-primary">{% translate "Select" %}</button>
+        </form>
+      </div>
+    </div>
   {% endfor %}
 {% endblock %}

@@ -1,9 +1,26 @@
 {% extends "base.html" %}
+{% load static i18n %}
 
 {% block content %}
-  {% if not context.proj_id %}
+  {% if not proj %}
     <p>You did not select a project yet. Please go to <a class="link" href="{% url 'home' %}">Projects</a> and select one</p>
   {% else %}
-    <p>proj_id = {{ context.proj_id }}</p>
+    <h1>Project: {{ proj.name }}</h1>
+    <p>{{ proj.description }}</p>
+    <h2>Select a scene to work with</h2>
+    {% for scene in scenes %}
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">{{ scene.name }}</h5>
+        <p class="card-text">{{ scene.description }}</p>
+        <form method="POST" action="{% url 'select_scene' %}">
+          {% csrf_token %}
+          <input type="hidden" name="scene_id" value="{{ scene.id }}">
+          <input type="hidden" name="proj_id" value="{{ proj.id }}">
+          <button type="submit" class="btn btn-primary">{% translate "Select" %}</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
   {% endif %}
 {% endblock %}

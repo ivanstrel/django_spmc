@@ -2,7 +2,7 @@
 
 {% block content %}
   {# Check that project and scene were selected #}
-  {% if not context.proj_id %}
+  {% if not proj_id %}
     <p>You did not select a project yet. Please go to <a class="link" href="{% url 'home' %}">Projects</a> and select one</p>
   {% else %}
     {% if not scene_id %}
@@ -11,8 +11,8 @@
       {# ============================================================================================================ #}
       {# ================================ Both scene and project were selectd, main part ============================ #}
       {# ============================================================================================================ #}
-      <p>proj_id = {{ context.proj_id }}</p>
-      <p>scene_id = {{ context.scene_id }}</p>
+      <p>proj_id = {{ proj_id }}</p>
+      <p>scene_id = {{ scene_id }}</p>
     {% endif %}
   {% endif %}
 {% endblock %}
