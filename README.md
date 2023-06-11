@@ -78,6 +78,11 @@ To launch python console use **"Tools --> Python or Debug Console"**
 3. You can call `manage.py` by direct invocation of commands through docker-composer exec, for example
    `docker-compose -f local.yml run --rm django python manage.py startapp spmc`
 
+#### Install new packages
+
+1. Edit `reuirements/base[local, production].txt` files, add required packages
+2. Run `docker-compose -f local.yml build` from a terminal
+
 ### Custom Bootstrap Compilation
 
 The generated CSS is set up with automatic Bootstrap recompilation with variables of your choice.

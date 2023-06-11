@@ -1,70 +1,92 @@
-import os
-import subprocess
-
 from django import forms
-from django.conf import settings
 from django.contrib.gis import admin
-from django.contrib.gis.gdal import GDALRaster
-from django.core.checks import Error
-from django.core.files.temp import NamedTemporaryFile
+from django.contrib.gis.geos import Polygon
+from django.core.exceptions import RequestAborted, ValidationError
 
-from .models import MiscTiles, Project, ProjectAlgos, Scene, SuperPixelAlgo
+from .models import MiscTile, Project, ProjectAlgo, Scene, SuperPixelAlgo
+from .utils import handle_tiles_upload
 
 admin.site.register(Project)
 admin.site.register(SuperPixelAlgo)
-admin.site.register(ProjectAlgos)
-admin.site.register(MiscTiles)
+admin.site.register(ProjectAlgo)
 
 
 # =====================================================================================================================
 # Processing Scene with base tiles
 # =====================================================================================================================
+class MiscTileInline(admin.TabularInline):
+    model = MiscTile
+    fields = ["name", "description", "uuid", "tiles_path", "bbox"]
+    readonly_fields = ["uuid", "tiles_path", "bbox"]
+
+
 class SceneFormAdmin(forms.ModelForm):
-    image_file = forms.FileField(label="Spatial Raster Image")
+    image_file = forms.FileField(label="Spatial Raster Image", required=False)
+
+    def clean_image_file(self):
+        # We want the user to provide image file on Scene creation. On the Scene change, the field is optional
+        im_file = self.cleaned_data["image_file"]
+        if self.instance.pk is None:  # Check if it is a new Scene object
+            if im_file is None:
+                raise ValidationError("To create a new entry, please provide the raster file")
 
     class Meta:
         model = Scene
-        fields = ["proj_id", "name", "description"]
+        fields = []
 
 
 @admin.register(Scene)
 class SceneAdmin(admin.ModelAdmin):
-    readonly_fields = ["tiles_path", "bbox"]
+    fields = ["proj_id", "name", "description", "image_file", "uuid", "tiles_path", "bbox"]
+    readonly_fields = ["uuid", "tiles_path", "bbox"]
+    inlines = [MiscTileInline]
     form = SceneFormAdmin
 
     def save_model(self, request, obj, form, change):
-        form = SceneFormAdmin(request.POST, request.FILES)
         if not form.is_valid():
-            raise Error("Form is not valid")
-
-        clean_data = form.cleaned_data
-        obj.proj_id = clean_data["proj_id"]
-        obj.name = clean_data["name"]
-        obj.description = clean_data["description"]
+            # If something wrong, just let super method to handle that
+            super().save_model(request, obj, form, change)
 
         # process image ===============================================================================================
-        image_file = request.FILES["image_file"]
-        # Generate random folder name
-        tmp_file = NamedTemporaryFile()
-        tmp_file_name = os.path.basename(tmp_file.name)
-        # Save file to temp
-        tmp_file.write(image_file.read())
+        # Here we want to process image only if it is in changed form data (pass if a new file was not provided)
+        if "image_file" in form.changed_data:
+            # Generate uuid field if not present
+            if obj.uuid is None:
+                obj.gen_uuid()
+                scene_uuid = obj.uuid
+            else:
+                scene_uuid = obj.uuid
+            # Process image
+            output_dir, bbox, srid, err = handle_tiles_upload(request.FILES["image_file"], scene_uuid)
+            # Check output for errors
+            if err is not None:
+                # TODO can not figure out how to handle this (form.add_error does not prevent for saving)
+                raise RequestAborted(err)
 
-        # Define the output directory name folder based on the primary key of the Scene model
-        output_dir = f"{settings.MEDIA_ROOT}/tiles/{tmp_file_name}"
-        # TODO here is a problem, as new dir will be created for each change,
-        # TODO Also it is possible that the dir with such name already exists (not sure in random name generator)
-        # Check if output path exists
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        # Run gdal2tiles.py as a subprocess, passing in the input and output paths
-        subprocess.run(["gdal2tiles.py", "-z", "10-18", "-w", "none", "-r", "bilinear", tmp_file.name, output_dir])
-        # Assign the output directory path to the Scene model
-        obj.tiles_path = output_dir
-        # Bounding box calculation ====================================================================================
-        rs = GDALRaster(tmp_file.name)
-        print(rs.srid)  # Dummy for pre_commit pass
-        # TODO add bounding box calculation
+            obj.tiles_path = output_dir
+            # Add bounding box to model obj, control for srid
+            poly = Polygon.from_bbox(bbox)
+            poly.srid = srid
+            # Reproject bbox polygon to Scene model srid
+            poly.transform(Scene.bbox.field.srid)
+            obj.bbox = poly
+            self.message_user(request, f"Tiles for {obj} have been processed and saved to {output_dir}")
+        # Call super save
         super().save_model(request, obj, form, change)
-        self.message_user(request, f"Tiles for {obj} have been processed and saved to {output_dir}")
+
+
+# =====================================================================================================================
+# Processing MiscTile model
+# =====================================================================================================================
+class MiscTileFormAdmin(SceneFormAdmin):
+    class Meta:
+        model = MiscTile
+        fields = []
+
+
+@admin.register(MiscTile)
+class MiscTileAdmin(SceneAdmin):
+    fields = ["scene_id", "name", "description", "image_file", "uuid", "tiles_path", "bbox"]
+    readonly_fields = ["uuid", "tiles_path", "bbox"]
+    inlines = []
+    form = MiscTileFormAdmin

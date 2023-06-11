@@ -1,5 +1,6 @@
 import os
 import shutil
+import uuid
 
 from django.contrib.gis.db import models
 from django.utils.translation import gettext_lazy as _
@@ -30,7 +31,7 @@ class SuperPixelAlgo(models.Model):
         return f"SP algorithm: {self.name}"
 
 
-class ProjectAlgos(models.Model):
+class ProjectAlgo(models.Model):
     """
     List of approved Superpixel algorithms for each project
     """
@@ -50,6 +51,7 @@ class Scene(models.Model):
     proj_id = models.ForeignKey(Project, on_delete=models.CASCADE)
     name = models.CharField(_("Scene name"), max_length=255, unique=True, blank=False)
     description = models.TextField(_("Scene description"), blank=True, null=True)
+    uuid = models.TextField(blank=True, null=True, editable=False, unique=True)
     tiles_path = models.FilePathField(blank=True, null=True, editable=False)
     bbox = models.PolygonField(blank=True, null=True, srid=4326, editable=False)
 
@@ -63,8 +65,11 @@ class Scene(models.Model):
                 shutil.rmtree(self.tiles_path)
         super().delete(*args, **kwargs)
 
+    def gen_uuid(self):
+        self.uuid = str(uuid.uuid4())
 
-class MiscTiles(models.Model):
+
+class MiscTile(models.Model):
     """
     MiscTiles model for Django_SPMC for storing paths and meta info about additional layers
     """
@@ -72,6 +77,7 @@ class MiscTiles(models.Model):
     scene_id = models.ForeignKey(Scene, on_delete=models.CASCADE)
     name = models.CharField(_("MiscTiles name"), max_length=255, unique=True, blank=False)
     description = models.TextField(_("MiscTiles description"), blank=True)
+    uuid = models.TextField(blank=True, null=True, editable=False, unique=True)
     tiles_path = models.FilePathField(blank=True)
     bbox = models.PolygonField(blank=True, null=True, srid=4326)
 
@@ -83,6 +89,9 @@ class MiscTiles(models.Model):
         if os.path.exists(self.tiles_path):
             shutil.rmtree(self.tiles_path)
         super().delete(*args, **kwargs)
+
+    def gen_uuid(self):
+        self.uuid = str(uuid.uuid4())
 
 
 class SuperPixel(models.Model):
