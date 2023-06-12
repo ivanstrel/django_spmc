@@ -99,9 +99,9 @@ class SuperPixel(models.Model):
     SuperPixel model for Django_SPMC
     """
 
-    scene_id = models.ForeignKey(Scene, on_delete=models.CASCADE)
+    scene_id = models.ForeignKey(Scene, on_delete=models.CASCADE, blank=False, null=False)
     sp = models.PolygonField(blank=True, null=True, srid=4326)
-    algo_id = models.ForeignKey(SuperPixelAlgo, on_delete=models.CASCADE)
+    algo_id = models.ForeignKey(SuperPixelAlgo, on_delete=models.CASCADE, blank=False, null=False)
 
     def __str__(self):
         return f"SuperPixel: {self.id}, scene: {self.scene_id}"
