@@ -32,7 +32,7 @@ def handle_tiles_upload(f_obj, uuid):
     err = None
     try:
         subprocess.check_output(
-            ["gdal2tiles.py", "-z", "10-18", "-w", "none", "-r", "--xyz", "bilinear", tmp_file.name, output_dir]
+            ["gdal2tiles.py", "-z", "10-18", "-w", "none", "--xyz", "-r", "bilinear", tmp_file.name, output_dir]
             # ["gdal2tiles.py", "-z", "1", "-w", "none", "-r", "bilinear", tmp_file.name, output_dir]
         )
     except subprocess.CalledProcessError:

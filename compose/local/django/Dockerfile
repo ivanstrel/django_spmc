@@ -44,7 +44,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   && rm -rf /var/lib/apt/lists/*
 
 # Install postgis dependencies
-# RUN apt-get update && apt-get install -y  binutils libproj-dev gdal-bin
+RUN apt-get update && apt-get install -y  binutils libproj-dev gdal-bin
 
 # All absolute dir copies ignore workdir instruction. All relative dir copies are wrt to the workdir instruction
 # copy python dependency wheels from python-build-stage

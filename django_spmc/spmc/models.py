@@ -2,6 +2,7 @@ import os
 import shutil
 import uuid
 
+from django.conf import settings
 from django.contrib.gis.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -65,6 +66,11 @@ class Scene(models.Model):
                 shutil.rmtree(self.tiles_path)
         super().delete(*args, **kwargs)
 
+    def get_center(self, srid):
+        center = self.bbox.centroid
+        center.transform(srid)
+        return center.coords
+
     def gen_uuid(self):
         self.uuid = str(uuid.uuid4())
 
@@ -94,6 +100,19 @@ class MiscTile(models.Model):
         self.uuid = str(uuid.uuid4())
 
 
+class LandClass(models.Model):
+    """
+    The model to store possible land classes for Django_SPMC
+    """
+
+    name = models.CharField(_("LandClass name"), max_length=255, unique=True, blank=False)
+    description = models.TextField(_("LandClass description"), blank=True)
+    color = models.CharField(_("LandClass color"), max_length=255, blank=True)
+
+    def __str__(self):
+        return f"Land Class: {self.name}"
+
+
 class SuperPixel(models.Model):
     """
     SuperPixel model for Django_SPMC
@@ -105,3 +124,26 @@ class SuperPixel(models.Model):
 
     def __str__(self):
         return f"SuperPixel: {self.id}, scene: {self.scene_id}"
+
+
+class LandClassification(models.Model):
+    """
+    The model to store possible land classification schemas for Django_SPMC
+    """
+
+    project_id = models.ForeignKey(Project, on_delete=models.CASCADE)
+    land_class_id = models.ForeignKey(LandClass, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"Land Classification. project: {self.project_id.id}, class: {self.land_class_id.name}"
+
+
+class SegmentationEntry(models.Model):
+    """
+    Store actual classifications
+    """
+
+    scene_id = models.ForeignKey(Scene, on_delete=models.CASCADE)
+    super_pixel_id = models.ForeignKey(SuperPixel, on_delete=models.CASCADE)
+    land_class_id = models.ForeignKey(LandClass, on_delete=models.CASCADE)
+    user_id = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

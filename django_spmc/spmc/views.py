@@ -80,8 +80,20 @@ def select_scene(request):
 
 @login_required
 def classification(request):
+    # Check if proj_id is in session data
+    if not request.session.get("proj_id"):
+        return redirect("scene")
+    # Prepare context
+    scene_obj = Scene.objects.get(id=request.session.get("scene_id"))
+    # proj_obj = Project.objects.get(id=request.session.get("proj_id"))
+    # misc_tiles = MiscTile.objects.filter(scene_id=scene_obj)
+    # superpixels = serialize("geojson", SuperPixel.objects.filter(scene_id=scene_obj))
     context = {
         "proj_id": request.session.get("proj_id"),
         "scene_id": request.session.get("scene_id"),
+        "scene": scene_obj,
+        "map_center": scene_obj.get_center(3857),
+        "user_id": request.user.pk,
     }
+    print(context)
     return render(request, "pages/classification.html", context=context)

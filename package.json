@@ -38,5 +38,9 @@
   "scripts": {
     "dev": "webpack serve --config webpack/dev.config.js",
     "build": "webpack --config webpack/prod.config.js"
+  },
+  "dependencies": {
+    "d3": "^7.8.5",
+    "ol": "^7.4.0"
   }
 }

@@ -6,13 +6,38 @@ from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.core.exceptions import RequestAborted, ValidationError
 from django.core.validators import FileExtensionValidator
 
-from .models import MiscTile, Project, ProjectAlgo, Scene, SuperPixel, SuperPixelAlgo
+from .models import (
+    LandClass,
+    LandClassification,
+    MiscTile,
+    Project,
+    ProjectAlgo,
+    Scene,
+    SegmentationEntry,
+    SuperPixel,
+    SuperPixelAlgo,
+)
 from .utils import check_geojson, check_raster, handle_tiles_upload
 
 admin.site.register(Project)
 admin.site.register(SuperPixelAlgo)
 admin.site.register(ProjectAlgo)
 admin.site.register(SuperPixel)
+admin.site.register(LandClassification)
+admin.site.register(SegmentationEntry)
+
+
+# =====================================================================================================================
+# Land class
+# =====================================================================================================================
+class LandClassFormAdmin(forms.ModelForm):
+    color = forms.CharField(label="Class color", max_length=7, widget=forms.TextInput(attrs={"type": "color"}))
+
+
+@admin.register(LandClass)
+class LandClassAdmin(admin.ModelAdmin):
+    fields = ["name", "description", "color"]
+    form = LandClassFormAdmin
 
 
 # =====================================================================================================================
