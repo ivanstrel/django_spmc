@@ -1,4 +1,4 @@
-from django.core.serializers import serialize
+from django.contrib.gis.db.models.functions import AsGeoJSON, Transform
 from django.db.models import OuterRef, Subquery
 from rest_framework import authentication, viewsets
 from rest_framework.decorators import action
@@ -31,9 +31,10 @@ class GetUserSuperpixels(viewsets.ViewSet):
             .annotate(land_class_id=Subquery(entries.values("land_class_id")))
             .annotate(entry_id=Subquery(entries.values("id")))
             .annotate(color=Subquery(colors.values("color")))
-        )
-        output = serialize("geojson", sp, geometry_field="sp", fields=["id", "land_class_id", "color"], srid=srid)
-        return Response(output)
+            # Here is a fastest version of geojson serialization (need processing on js side)
+            .annotate(features=AsGeoJSON(Transform("sp", srid)))
+        ).values("id", "land_class_id", "color", "features")
+        return Response(sp)
 
     @action(detail=False, methods=["post"])
     def save_one_sp(self, request):

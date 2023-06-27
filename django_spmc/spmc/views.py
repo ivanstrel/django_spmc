@@ -91,6 +91,7 @@ def classification(request):
     context = {
         "proj_id": request.session.get("proj_id"),
         "scene_id": request.session.get("scene_id"),
+        "algo_id": 1,  # TODO should be taken from request or from session
         "scene": scene_obj,
         "map_center": scene_obj.get_center(3857),
         "user_id": request.user.pk,
