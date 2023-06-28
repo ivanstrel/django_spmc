@@ -13,10 +13,13 @@
       <div class="card-body">
         <h5 class="card-title">{{ scene.name }}</h5>
         <p class="card-text">{{ scene.description }}</p>
+        <h6 class="card-text">Superpixel algorithm: {{ scene.algo_name }}</h6>
+        <p class="card-text">{{ scene.algo_descr }}</p>
         <form method="POST" action="{% url 'select_scene' %}">
           {% csrf_token %}
           <input type="hidden" name="scene_id" value="{{ scene.id }}">
           <input type="hidden" name="proj_id" value="{{ proj.id }}">
+          <input type="hidden" name="algo_id" value="{{ scene.algo_id }}">
           <button type="submit" class="btn btn-primary">{% translate "Select" %}</button>
         </form>
       </div>

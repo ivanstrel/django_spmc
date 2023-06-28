@@ -36,25 +36,31 @@ class GetUserSuperpixels(viewsets.ViewSet):
         ).values("id", "land_class_id", "color", "features")
         return Response(sp)
 
-    @action(detail=False, methods=["post"])
-    def save_one_sp(self, request):
-        entry_id = self.request.data.get("entry_id")
-        scene_id = self.request.data.get("scene_id")
-        sp_id = self.request.data.get("sp_id")
-        land_class_id = self.request.data.get("land_class_id")
+    @action(detail=False, methods=["post"], name="save-sp")
+    def save_sp(self, request):
+        upd_list = request.data.get("upd")
+        for entry in upd_list:
+            user_id = request.user.id
+            scene_id = entry.get("scene_id")
+            sp_id = entry.get("superpixel_id")
+            land_class_id = entry.get("class_id")
 
-        if entry_id:
-            SegmentationEntry(
-                id=entry_id,
-                user_id=request.user,
-                super_pixel_id=SuperPixel.objects.get(id=sp_id),
-                scene_id=Scene.objects.get(id=scene_id),
-                land_class_id=LandClass(id=land_class_id),
-            ).save()
-        else:
-            SegmentationEntry(
-                user_id=request.user,
-                super_pixel_id=SuperPixel.objects.get(id=sp_id),
-                scene_id=Scene.objects.get(id=scene_id),
-                land_class_id=LandClass(id=land_class_id),
-            ).save()
+            # Check if such entry is already in database
+            obj = SegmentationEntry.objects.filter(
+                scene_id__id=scene_id, super_pixel_id__id=sp_id, user_id__id=user_id
+            )
+            if obj.exists():
+                # This is an update case
+                obj = obj.get()
+                obj.land_class_id = LandClass(id=land_class_id)
+                obj.save()
+            else:
+                # This is a creation case
+                SegmentationEntry(
+                    user_id=request.user,
+                    super_pixel_id=SuperPixel.objects.get(id=sp_id),
+                    scene_id=Scene.objects.get(id=scene_id),
+                    land_class_id=LandClass.objects.get(id=land_class_id),
+                ).save()
+
+        return Response({"code": "done"})

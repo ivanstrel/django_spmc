@@ -1,7 +1,7 @@
 import 'ol/ol.css';
 import Map from 'ol/Map';
-import { Layer, Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
-import { Style, Fill, Stroke } from 'ol/style';
+import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
+import { Fill, Stroke, Style } from 'ol/style';
 import View from 'ol/View';
 import OSM from 'ol/source/OSM';
 import XYZ from 'ol/source/XYZ';
@@ -9,13 +9,30 @@ import Vector from 'ol/source/Vector';
 import * as d3 from 'd3';
 import GeoJSON from 'ol/format/GeoJSON';
 import Select from 'ol/interaction/Select';
-import { altKeyOnly, click, pointerMove } from 'ol/events/condition';
+import { click } from 'ol/events/condition';
 
 function hexToRgba(hex, alpha) {
-  let r = parseInt(hex.substring(0, 2), 16);
-  let g = parseInt(hex.substring(2, 4), 16);
-  let b = parseInt(hex.substring(4, 6), 16);
-  return [b, g, r, alpha];
+  let r = parseInt(hex.substring(1, 3), 16);
+  let g = parseInt(hex.substring(3, 5), 16);
+  let b = parseInt(hex.substring(5, 7), 16);
+  return [r, g, b, alpha];
+}
+
+// List of geojson's to geojson
+function list2geojson(list) {
+  return {
+    type: 'FeatureCollection',
+    srid: 3857,
+    features: list.map((segment) => ({
+      type: 'Feature',
+      geometry: JSON.parse(segment.features),
+      properties: {
+        id: segment.id,
+        land_class_id: segment.land_class_id,
+        color: segment.color,
+      },
+    })),
+  };
 }
 
 const map_sentinel = new Map({
@@ -81,7 +98,7 @@ selectInteraction.on('select', function (event) {
       new Style({
         fill: new Fill({
           color: feature.get('color')
-            ? hexToRgba(feature.get('color'), 0.5)
+            ? hexToRgba(feature.get('color'), 0.2)
             : 'rgba(255, 255, 255, 0)',
         }),
         stroke: new Stroke({
@@ -97,21 +114,72 @@ selectInteraction.on('select', function (event) {
 /**
  * Class assignment handlers =========================================================================================
  */
+function send_update(obj) {
+  fetch(api_upd_url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrf_token,
+    },
+    body: JSON.stringify({ upd: obj }),
+  })
+    .then((response) => response.json())
+    // TODO ad handling of responses
+    .then((result) => {
+      console.log('Server response:', result);
+      // Handle the response from the server
+    })
+    .catch((error) => {
+      console.error('Error:', error);
+      // Handle any errors that occurred during the request
+    });
+}
+
+function assign_class(id, color) {
+  // Get currently selected features
+  let cur_selected = selectInteraction.getFeatures();
+  if (cur_selected.get('length') === 0) {
+    return null;
+  }
+
+  // Prepare an object for POST request
+  let server_update_obj = [];
+
+  cur_selected.forEach(function (feature) {
+    feature.set('land_class_id', id);
+    feature.set('color', color);
+    server_update_obj.push({
+      superpixel_id: feature.get('id'),
+      class_id: id,
+      scene_id: scene_id,
+    });
+  });
+  // Send update request to server
+  send_update(server_update_obj);
+  // Clear selection
+  selectInteraction.getFeatures().clear();
+}
+// Make the function global
+window.assign_class = assign_class;
 // On num keyboard press, update the class property for currently selected feature
 document.addEventListener('keydown', function (event) {
-  if (event.code === 'Numpad1' || event.code === 'Digit1') {
-    // Perform your action here
-    console.log('Num keyboard 1 was pressed!');
-    let cur_selected = selectInteraction.getFeatures();
-    if (cur_selected.length === 0) {
-      return null;
-    }
-    cur_selected.forEach(function (feature) {
-      feature.set('land_class_id', 1);
-      feature.set('color', '#a51d2d');
-    });
-    // Clear selection
-    selectInteraction.getFeatures().clear();
+  // Prepare accepted events codes
+  let event_codes = class_col.flatMap((segment) => [
+    'Numpad' + segment.key,
+    'Digit' + segment.key,
+  ]);
+  // Convert class_col into JSON based on key value
+  let class_col_obj = {};
+  for (const item of class_col) {
+    const { key, ...rest } = item;
+    class_col_obj[key] = rest;
+  }
+  // First check that event key was from accepted keys (i.e. accepted num-key for classes)
+  if (event_codes.indexOf(event.code) > -1 && !event.altKey && !event.ctrlKey) {
+    // Get class object
+    let cur_land_class = class_col_obj[event.key];
+    // Assign class and color to selected features
+    assign_class(cur_land_class.land_class_id_id, cur_land_class.color);
   }
 });
 
@@ -128,19 +196,7 @@ d3.json('/api/superpixels/get_sp/', {
   }),
 }).then(function (data) {
   // Construct geojson
-  let geojson = {
-    type: 'FeatureCollection',
-    srid: 3857,
-    features: data.map((segment) => ({
-      type: 'Feature',
-      geometry: JSON.parse(segment.features),
-      properties: {
-        id: segment.id,
-        land_class_id: segment.land_class_id,
-        color: segment.color,
-      },
-    })),
-  };
+  let geojson = list2geojson(data);
   // Create a new layer to display the GeoJSON data
   const vectorLayer = new VectorLayer({
     source: new Vector({

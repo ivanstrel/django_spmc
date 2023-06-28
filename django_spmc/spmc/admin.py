@@ -150,10 +150,10 @@ class SceneAdmin(admin.ModelAdmin):
             if obj.pk is None:
                 obj.save()
                 change = True  # So the super().save_model will treat subsequent additions as changes
-            else:  # The case of update
-                SuperPixel.objects.filter(scene_id=obj).delete()
+            else:  # The case of update (delete existent polys only if algo_id is the same)
+                SuperPixel.objects.filter(scene_id=obj).filter(algo_id=form.cleaned_data.get("algo_id")).delete()
 
-            # Read geojson file (do not why, bu I was able to read it only via chunks)
+            # Read geojson file (do not know why, but I was able to read it only via chunks)
             json_str = ""
             for chunk in request.FILES["json_file"].chunks():
                 json_str += chunk.decode("utf-8")
