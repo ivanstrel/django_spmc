@@ -6,7 +6,7 @@ from django.db.models import F, Window
 from django.db.models.functions import RowNumber
 from django.shortcuts import redirect, render
 
-from .models import LandClassification, Project, Scene
+from .models import LandClassification, MiscTile, Project, Scene
 
 
 def home(request):
@@ -113,7 +113,7 @@ def classification(request):
         .annotate(key=Window(expression=RowNumber()))
     )
     class_col_json = json.dumps(list(class_col.values()), cls=DjangoJSONEncoder)
-    # misc_tiles = MiscTile.objects.filter(scene_id=scene_obj)
+    misc_tiles = MiscTile.objects.filter(scene_id=scene_obj)
     context = {
         "proj_id": project_id,
         "scene_id": scene_id,
@@ -123,5 +123,6 @@ def classification(request):
         "user_id": request.user.pk,
         "class_col": class_col,
         "class_col_json": class_col_json,
+        "misc_tiles": misc_tiles,
     }
     return render(request, "pages/classification.html", context=context)

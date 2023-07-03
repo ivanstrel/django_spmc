@@ -15,6 +15,16 @@
     const csrf_token = "{{ csrf_token }}"
     const class_col = JSON.parse('{{ class_col_json|escapejs }}')
     const api_upd_url = "{% url 'api:superpixels-save-sp' %}"
+    {# Add miscellaneous tiles #}
+    const misc_tiles = {
+      {% for misc in misc_tiles %}
+        "{{ misc.uuid }}": {
+          path: "{% get_media_prefix %}tiles/{{misc.uuid}}/{z}/{x}/{y}.png",
+          name: '{{ misc.name }}',
+          descr: '{{ misc.description }}'
+      }
+      {% endfor %}
+    }
   </script>
   <!-- Main page dependencies -->
   {% render_bundle 'main_page' 'js' attrs='defer' %}

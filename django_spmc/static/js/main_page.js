@@ -4,12 +4,14 @@ import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
 import { Fill, Stroke, Style } from 'ol/style';
 import View from 'ol/View';
 import OSM from 'ol/source/OSM';
+import BingMaps from 'ol/source/BingMaps';
 import XYZ from 'ol/source/XYZ';
 import Vector from 'ol/source/Vector';
 import * as d3 from 'd3';
 import GeoJSON from 'ol/format/GeoJSON';
 import Select from 'ol/interaction/Select';
 import { click } from 'ol/events/condition';
+import { getCenter } from 'ol/extent';
 
 function hexToRgba(hex, alpha) {
   let r = parseInt(hex.substring(1, 3), 16);
@@ -35,16 +37,48 @@ function list2geojson(list) {
   };
 }
 
+/**
+ * Prepare miscellaneous layers =====================================================================================
+ */
+// Create array of miscellaneous layers
+let misc_layers = Object.getOwnPropertyNames(misc_tiles).map((key) => {
+  return new TileLayer({
+    name: misc_tiles[key].name,
+    visible: false,
+    source: new XYZ({
+      url: misc_tiles[key].path,
+    }),
+  });
+});
+
+// Create array of layers names on `map_sentinel`
+let sentinel_layers_names = Object.getOwnPropertyNames(misc_tiles).map(
+  (key) => {
+    return misc_tiles[key].name;
+  },
+);
+sentinel_layers_names = ['SentinelRGB'].concat(sentinel_layers_names);
+
+// Generate array of key codes allowed for layer selection
+let allowed_layer_digits = [];
+for (let i = 0; i < sentinel_layers_names.length; i++) {
+  allowed_layer_digits.push('Digit' + (i + 1));
+  allowed_layer_digits.push('Numpad' + (i + 1));
+}
+/**
+ * Initiate maps ====================================================================================================
+ */
 const map_sentinel = new Map({
   target: 'map-sentinel',
   layers: [
-    new TileLayer({ source: new OSM() }),
+    new TileLayer({ name: 'OSM', source: new OSM() }),
     new TileLayer({
+      name: 'SentinelRGB',
       source: new XYZ({
         url: 'http://localhost:3000/media/tiles/ea0ce40b-f2dc-4d6f-aa0e-537943905f51/{z}/{x}/{y}.png',
       }),
     }),
-  ],
+  ].concat(misc_layers),
   view: new View({
     center: map_center,
     zoom: 15,
@@ -55,8 +89,19 @@ const map_sat = new Map({
   target: 'map-sentinel',
   layers: [
     new TileLayer({
+      name: 'ESRI',
       source: new XYZ({
         url: 'https://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      }),
+    }),
+    new TileLayer({
+      name: 'Bing',
+      visible: false,
+      preload: Infinity,
+      source: new BingMaps({
+        key: 'Asy2HQTzPXirXy5Ro2GCPGoR7dVNveFIhXM7QdmyYRo2prQNw-2M1c32Vg1NwC0Q',
+        imagerySet: 'Aerial',
+        maxZoom: 19,
       }),
     }),
   ],
@@ -82,9 +127,30 @@ map_sat.on('moveend', function () {
 });
 
 /**
+ * Map layers handlers ==============================================================================================
+ */
+// Get the layer by its name
+function getLayerByName(map, name) {
+  let layers = map.getLayers().getArray();
+  for (var i = 0; i < layers.length; i++) {
+    if (layers[i].get('name') === name) {
+      return layers[i];
+    }
+  }
+  return null;
+}
+
+// Change the visibility of a layer by name
+function setLayerVisibilityByName(map, name, visibility) {
+  let layer = getLayerByName(map, name);
+  if (layer) {
+    layer.setVisible(visibility);
+  }
+}
+
+/**
  * Selection handlers ================================================================================================
  */
-
 // Create a new select interaction with multi selection enabled
 let selectInteraction = new Select({
   condition: click,
@@ -93,6 +159,7 @@ let selectInteraction = new Select({
 
 // When a feature is selected, update its style
 selectInteraction.on('select', function (event) {
+  // Update selected features style
   event.selected.forEach(function (feature) {
     feature.setStyle(
       new Style({
@@ -109,6 +176,10 @@ selectInteraction.on('select', function (event) {
       }),
     );
   });
+  // Center map on selected feature
+  let ext = event.selected.slice(-1)[0].getGeometry().getExtent();
+  let cntr = getCenter(ext);
+  map_sat.getView().setCenter(cntr);
 });
 
 /**
@@ -180,6 +251,37 @@ document.addEventListener('keydown', function (event) {
     let cur_land_class = class_col_obj[event.key];
     // Assign class and color to selected features
     assign_class(cur_land_class.land_class_id_id, cur_land_class.color);
+  } else {
+    // If ctrl+9 set ESRI base layer if ctrl+0 set Bind layer
+    if (
+      (event.code === 'Digit0' || event.code === 'Numpad0') &&
+      event.ctrlKey
+    ) {
+      setLayerVisibilityByName(map_sat, 'Bing', true);
+      setLayerVisibilityByName(map_sat, 'ESRI', false);
+    }
+    if (
+      (event.code === 'Digit9' || event.code === 'Numpad9') &&
+      event.ctrlKey
+    ) {
+      setLayerVisibilityByName(map_sat, 'Bing', false);
+      setLayerVisibilityByName(map_sat, 'ESRI', true);
+    }
+    // If ctrl+1:ctrl+8 set appropriate layer visibility
+    if (allowed_layer_digits.indexOf(event.code) > -1 && event.ctrlKey) {
+      // Get target layer name basing on event key
+      let cur_layer_name = sentinel_layers_names[event.key - 1];
+      // Change layer visibility (except OSM and Vector)
+      map_sentinel.getLayers().forEach(function (layer) {
+        if (layer.get('name') === cur_layer_name) {
+          setLayerVisibilityByName(map_sentinel, cur_layer_name, true);
+        } else {
+          if (layer.get('name') !== 'OSM' && layer.get('name') !== 'Vector') {
+            setLayerVisibilityByName(map_sentinel, layer.get('name'), false);
+          }
+        }
+      });
+    }
   }
 });
 
@@ -199,6 +301,7 @@ d3.json('/api/superpixels/get_sp/', {
   let geojson = list2geojson(data);
   // Create a new layer to display the GeoJSON data
   const vectorLayer = new VectorLayer({
+    name: 'Vector',
     source: new Vector({
       features: new GeoJSON().readFeatures(geojson),
     }),
