@@ -30,41 +30,110 @@
   {% render_bundle 'main_page' 'js' attrs='defer' %}
 {% endblock javascript %}
 {% block content %}
-  {# Check that project and scene were selected #}
-  {% if not proj_id %}
-    <p>You did not select a project yet. Please go to <a class="link" href="{% url 'home' %}">Projects</a> and select one</p>
-  {% else %}
-    {% if not scene_id %}
-      <p>You did not select a scene yet. Please go to <a class="link" href="{% url 'scene' %}">Scene</a> and select one</p>
+  <div class="row" id="row-main">
+    {# Check that project and scene were selected #}
+    {% if not proj_id %}
+      <p>You did not select a project yet. Please go to <a class="link" href="{% url 'home' %}">Projects</a> and select one</p>
     {% else %}
-      {# ============================================================================================================ #}
-      {# ================================ Both scene and project were selectd, main part ============================ #}
-      {# ============================================================================================================ #}
-      <p>proj_id = {{ proj_id }}</p>
-      <p>scene_id = {{ scene_id }}</p>
+      {% if not scene_id %}
+        <p>You did not select a scene yet. Please go to <a class="link" href="{% url 'scene' %}">Scene</a> and select one</p>
+      {% else %}
+        {# ============================================================================================================ #}
+        {# ================================ Both scene and project were selectd, main part ============================ #}
+        {# ============================================================================================================ #}
+        <div class="col-lg-10 col-md-12 col-main">
+        <div class="container-fluid">
+            <div id="map-sentinel"></div>
+            <div id="map-sat"></div>
+        </div>
+        </div>
 
-      <div id="map-sentinel-container">
-        <div id="map-sentinel" style="width: 100%; height: 400px"></div>
-      </div>
-      <div id="map-sat-container">
-        <div id="map-sat" style="width: 100%; height: 400px"></div>
-      </div>
+        <div class="col-lg-2 col-md-12 col-main">
+          <div class="container-fluid">
+          <div class="card">
+            <div class="card-body">
+              <h6 class="card-title">Info</h6>
+              <p>proj_id = {{ proj_id }}</p>
+              <p>scene_id = {{ scene_id }}</p>
+            </div>
+          </div>
 
-      {# ================= Buttons for class selection with mouse ==================== #}
-      <div>
-        {% for class in class_col %}
-          <button id="class-btn-{{ class.land_class_id_id }}" type="button" class="btn btn-primary class-btn" style="background: {{ class.color }}">{{ class.key }} {{ class.name }}</button>
-        {% endfor %}
-      </div>
+          {# ======================== Layers visability buttons=========================== #}
+          <div class="card">
+            <div class="card-body">
+              <h6 class="card-title">Satellite maps</h6>
+              <button id="sentinel-button-1" type="button" class="btn btn-primary misc-btn">Sentinel RGB [ctrl+1]</button>
+              {% for misc in misc_tiles %}
+                <button id="sentinel-button-{{ forloop.counter|add:1 }}" type="button" class="btn btn-primary misc-btn">{{ misc.name }} [ctrl+{{ forloop.counter|add:1 }}]</button>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <h6 class="card-title">Arial helper maps</h6>
+              <button id="sat-button-9" type="button" class="btn btn-primary misc-btn">ESRI [ctrl+9]</button>
+              <button id="sat-button-0" type="button" class="btn btn-primary misc-btn">Bing [ctrl+0]</button>
+            </div>
+          </div>
+          {# ================= Buttons for class selection with mouse ==================== #}
+          <div class="card">
+            <div class="card-body">
+              <h6 class="card-title">Land classes</h6>
+              <div>
+                {% for class in class_col %}
+                  <button id="class-btn-{{ class.land_class_id_id }}" type="button" class="btn btn-primary class-btn" style="background: {{ class.color }}">{{ class.key }} {{ class.name }}</button>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {# =================== Button for next unselected polygon ====================== #}
+          <div class="card">
+            <div class="card-body">
+              <h6 class="card-title">Next unassigned</h6>
+              <button id="next-btn" type="button" class="btn btn-primary class-btn">Next polygon [ctrl+space]</button>
+            </div>
+          </div>
+          </div>
+        </div>
+      {% endif %}
     {% endif %}
-  {% endif %}
+  </div>
 {% endblock content %}
+{% block modal %}
+  <div class="modal" id="no-unassigned-poly-modal">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <!-- Modal Header -->
+        <div class="modal-header">
+          <h4 class="modal-title">Scene is classified</h4>
+        </div>
+        <!-- Modal Body -->
+        <div class="modal-body">
+          There are not any unassigned polygons left. You can continue to work with this scene, or select a new one.
+        </div>
+        <!-- Modal Footer -->
+        <div class="modal-footer">
+          <a href="{% url 'scene' %}" class="btn btn-primary">Select new scene</a>
+          <button id="no-unassigned-poly-modal-close" type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock modal %}
 {% block inline_javascript %}
   <script>
     window.addEventListener('DOMContentLoaded', () => {
       {% for class in class_col %}
         document.getElementById("class-btn-{{ class.land_class_id_id }}").addEventListener("click", assign_class.bind(null, {{ class.land_class_id_id }}, '{{ class.color }}'));
       {% endfor %}
+      document.getElementById("sentinel-button-1").addEventListener("click", swap_misc_layers.bind(null, "SentinelRGB"));
+      {% for misc in misc_tiles %}
+        document.getElementById("sentinel-button-{{ forloop.counter|add:1 }}").addEventListener("click", swap_misc_layers.bind(null, "{{ misc.name }}"));
+      {% endfor %}
+      document.getElementById("sat-button-9").addEventListener("click", swap_sat_layers.bind(null, 9));
+      document.getElementById("sat-button-0").addEventListener("click", swap_sat_layers.bind(null, 0));
+
+      document.getElementById("next-btn").addEventListener("click", select_next_poly);
     });
   </script>
 {% endblock inline_javascript %}

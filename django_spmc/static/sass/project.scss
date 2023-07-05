@@ -34,3 +34,32 @@ $red: #b94a48;
   border-color: $dark-pink;
   color: $red;
 }
+
+/////////////////////////
+// Classification page //
+/////////////////////////
+#row-main {
+  padding: 0 5px 0 5px;
+}
+
+div.col-main:first-child {
+  padding: 0 0 0 5px;
+}
+
+div.col-main:nth-child(2) {
+  padding: 0 0 0 0;
+}
+
+#map-sentinel {
+  width: 100%;
+  height: calc((100vh - 56px) / 2 - 7px);
+}
+
+#map-sat {
+  width: 100%;
+  height: calc((100vh - 56px) / 2 - 7px);
+}
+
+div.ol-viewport:first-child {
+  margin-bottom: 5px;
+}

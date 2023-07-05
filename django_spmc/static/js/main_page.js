@@ -12,7 +12,19 @@ import GeoJSON from 'ol/format/GeoJSON';
 import Select from 'ol/interaction/Select';
 import { click } from 'ol/events/condition';
 import { getCenter } from 'ol/extent';
+import { SelectEvent } from 'ol/interaction/Select';
 
+/**
+ * Constants =========================================================================================================
+ */
+// Prepare a distance matrix for all polygon features
+const distance_matrix = [];
+const polygons_ids = [];
+let last_assigned_id = null;
+
+/**
+ * Misc functions ====================================================================================================
+ */
 function hexToRgba(hex, alpha) {
   let r = parseInt(hex.substring(1, 3), 16);
   let g = parseInt(hex.substring(3, 5), 16);
@@ -127,7 +139,7 @@ map_sat.on('moveend', function () {
 });
 
 /**
- * Map layers handlers ==============================================================================================
+ * Map layers visibility handlers ====================================================================================
  */
 // Get the layer by its name
 function getLayerByName(map, name) {
@@ -148,6 +160,33 @@ function setLayerVisibilityByName(map, name, visibility) {
   }
 }
 
+function swap_misc_layers(name) {
+  map_sentinel.getLayers().forEach(function (layer) {
+    if (layer.get('name') === name) {
+      setLayerVisibilityByName(map_sentinel, name, true);
+    } else {
+      if (layer.get('name') !== 'OSM' && layer.get('name') !== 'Vector') {
+        setLayerVisibilityByName(map_sentinel, layer.get('name'), false);
+      }
+    }
+  });
+}
+
+// Make the function global
+window.swap_misc_layers = swap_misc_layers;
+
+function swap_sat_layers(index) {
+  if (index === 9) {
+    setLayerVisibilityByName(map_sat, 'Bing', false);
+    setLayerVisibilityByName(map_sat, 'ESRI', true);
+  }
+  if (index === 0) {
+    setLayerVisibilityByName(map_sat, 'Bing', true);
+    setLayerVisibilityByName(map_sat, 'ESRI', false);
+  }
+}
+
+window.swap_sat_layers = swap_sat_layers;
 /**
  * Selection handlers ================================================================================================
  */
@@ -224,6 +263,8 @@ function assign_class(id, color) {
       class_id: id,
       scene_id: scene_id,
     });
+    // Assign current feature ID as last assigned
+    last_assigned_id = feature.get('id');
   });
   // Send update request to server
   send_update(server_update_obj);
@@ -257,30 +298,20 @@ document.addEventListener('keydown', function (event) {
       (event.code === 'Digit0' || event.code === 'Numpad0') &&
       event.ctrlKey
     ) {
-      setLayerVisibilityByName(map_sat, 'Bing', true);
-      setLayerVisibilityByName(map_sat, 'ESRI', false);
+      swap_sat_layers(0);
     }
     if (
       (event.code === 'Digit9' || event.code === 'Numpad9') &&
       event.ctrlKey
     ) {
-      setLayerVisibilityByName(map_sat, 'Bing', false);
-      setLayerVisibilityByName(map_sat, 'ESRI', true);
+      swap_sat_layers(9);
     }
     // If ctrl+1:ctrl+8 set appropriate layer visibility
     if (allowed_layer_digits.indexOf(event.code) > -1 && event.ctrlKey) {
       // Get target layer name basing on event key
       let cur_layer_name = sentinel_layers_names[event.key - 1];
       // Change layer visibility (except OSM and Vector)
-      map_sentinel.getLayers().forEach(function (layer) {
-        if (layer.get('name') === cur_layer_name) {
-          setLayerVisibilityByName(map_sentinel, cur_layer_name, true);
-        } else {
-          if (layer.get('name') !== 'OSM' && layer.get('name') !== 'Vector') {
-            setLayerVisibilityByName(map_sentinel, layer.get('name'), false);
-          }
-        }
-      });
+      swap_misc_layers(cur_layer_name);
     }
   }
 });
@@ -288,6 +319,7 @@ document.addEventListener('keydown', function (event) {
 /**
  * Add vector map =====================================================================================================
  */
+// Make a request to the server
 d3.json('/api/superpixels/get_sp/', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf_token },
@@ -327,4 +359,129 @@ d3.json('/api/superpixels/get_sp/', {
 
   // Add the select interaction to the map
   map_sentinel.addInteraction(selectInteraction);
+
+  // Prepare distance matrix
+  prepareDistanceMatrix(vectorLayer, distance_matrix, polygons_ids);
+});
+
+/**
+ * Distance handling ==================================================================================================
+ */
+function prepareDistanceMatrix(layer, matrix, ids) {
+  let polygonFeatures = layer.getSource().getFeatures();
+  for (let i = 0; i < polygonFeatures.length; i++) {
+    const distances = [];
+    for (let j = 0; j < polygonFeatures.length; j++) {
+      if (i === j) {
+        distances.push(0); // Distance to itself is 0
+      } else {
+        const sourceGeometry = getCenter(
+          polygonFeatures[i].getGeometry().getExtent(),
+        );
+        const targetGeometry = getCenter(
+          polygonFeatures[j].getGeometry().getExtent(),
+        );
+        const distance = Math.sqrt(
+          (sourceGeometry[0] - targetGeometry[0]) ** 2 +
+            (sourceGeometry[1] - targetGeometry[1]) ** 2,
+        );
+        distances.push(distance);
+      }
+    }
+    // Add id and distance to matrix
+    ids.push(polygonFeatures[i].get('id'));
+    matrix.push(distances);
+  }
+}
+
+/**
+ * Functionality for next polygon selection ==========================================================================
+ */
+function findClosestPolygonWithNullLandClass(
+  polygons,
+  polygon_id,
+  distance_matrix,
+  polygons_ids,
+) {
+  /*
+   * Find the closest polygon with a non-null landclass
+   */
+  let closest_pos = null;
+  let min_dist = Infinity;
+  let poly_pos = polygons_ids.indexOf(polygon_id);
+  let dist_col = distance_matrix[poly_pos];
+  // Iterate through each polygon ID
+  for (let i = 0; i < polygons_ids.length; i++) {
+    // Skip if the current polygon has a non-null landclass or is the same as the input polygon
+    if (poly_pos !== i && polygons[i].get('land_class_id') === null) {
+      // Get the distance between the current polygon and the input polygon from the distance matrix
+      const distance = dist_col[polygons_ids.indexOf(polygons[i].get('id'))];
+
+      // Update the closest polygon if the current distance is smaller
+      if (distance < min_dist) {
+        min_dist = distance;
+        closest_pos = i;
+      }
+    }
+  }
+  return closest_pos;
+}
+
+let btn_close = document.getElementById('no-unassigned-poly-modal-close');
+let modal_full = document.getElementById('no-unassigned-poly-modal');
+btn_close.addEventListener('click', () => {
+  modal_full.style.display = 'none';
+});
+
+function select_next_poly() {
+  // Get currently selected features
+  let polygons_lyr = getLayerByName(map_sentinel, 'Vector');
+  let polygons = polygons_lyr.getSource().getFeatures();
+  // Check if there is at leas 1 unassigned polygon
+  let unassigned_count = 0;
+  for (let i = 0, len = polygons.length; i < len; i++) {
+    if (polygons[i].get('land_class_id') === null) {
+      unassigned_count++;
+    }
+  }
+  if (unassigned_count === 0) {
+    modal_full.style.display = 'block';
+    return;
+  }
+  // If there were not any assignments, select any unassigned polygon
+  if (last_assigned_id === null) {
+    for (let i = 0, len = polygons.length; i < len; i++) {
+      if (polygons[i].get('land_class_id') === null) {
+        // Dispatch select event for unassigned polygon
+        const selectEvent = new SelectEvent('select', [polygons[i]]);
+        selectInteraction.getFeatures().clear();
+        selectInteraction.getFeatures().push(polygons[i]);
+        selectInteraction.dispatchEvent(selectEvent);
+        return;
+      }
+    }
+  }
+  // Find the closest polygon with a non-null landclass
+  let closest_pos = findClosestPolygonWithNullLandClass(
+    polygons,
+    last_assigned_id,
+    distance_matrix,
+    polygons_ids,
+  );
+  // Select the closest polygon
+  // Dispatch select event for unassigned polygon
+  const selectEvent = new SelectEvent('select', [polygons[closest_pos]]);
+  selectInteraction.getFeatures().clear();
+  selectInteraction.getFeatures().push(polygons[closest_pos]);
+  selectInteraction.dispatchEvent(selectEvent);
+}
+
+window.select_next_poly = select_next_poly;
+
+//Assign key combination [ctrl+space] for next polygon
+document.addEventListener('keydown', function (event) {
+  if (event.ctrlKey && event.code === 'Space') {
+    // Code to execute when Ctrl + Space is pressed
+    select_next_poly();
+  }
 });
